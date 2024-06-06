@@ -151,3 +151,150 @@ router.post('/login-user', (req, res) => {
         });
     }
 });
+
+
+router.post('/create-post', (req, res) => {
+    if ('userID' in req.body && 'latitude' in req.body && 'longitude' in req.body &&
+        'title' in req.body && 'content' in req.body && 'tag' in req.body && 'isAnonymous' in req.body)
+    {
+        if (req.body.title.trim() === '')
+        {
+            console.log('/create-post', { error: "Please enter a title" });
+            res.status(401).json({
+                error: "Please enter a title"
+            });
+        }
+        else if (req.body.content.trim() === '')
+        {
+            console.log('/create-post', { error: "Please enter content" });
+            res.status(401).json({
+                error: "Please enter content"
+            });
+        }
+        else
+        {
+            User.find().where({ _id: req.body.userID })
+            .then(result => {
+                if (result.length == 0)
+                {
+                    console.log('/create-post', { error: "Invalid userID" });
+                    res.status(401).json({
+                        error: "Invalid userID"
+                    });
+                }
+                else
+                {
+                    let post = new Post({
+                        _id: new mongoose.Types.ObjectId(),
+                        userID: req.body.userID,
+                        latitude: req.body.latitude,
+                        longitude: req.body.longitude,
+                        author: result[0].name,
+                        avatar: result[0].avatar,
+                        title: req.body.title,
+                        content: req.body.content,
+                        comments: [],
+                        tag: req.body.tag,
+                        isAnonymous: req.body.isAnonymous
+                    });
+        
+                    post.save()
+                    .then(result => {
+                        console.log('/create-post', { message: "Post added sucessfully" });
+                        res.status(200).json({
+                            message: "Post added sucessfully"
+                        });
+                    })
+                    .catch(err => {
+                        console.log('/create-post', { error: err });
+                        res.status(401).json({
+                            error: err
+                        });
+                    });
+                }
+            })
+            .catch(err => {
+                console.log('/create-post', { error: err });
+                res.status(401).json({
+                    error: err
+                });
+            });
+        }
+    }
+    else
+    {
+        console.log('/create-post', { error: "Body should contain userID, latitude, longitude, title, content, tag and isAnonymous!" });
+        res.status(401).json({
+            error: "Body should contain userID, latitude, longitude, title, content, tag and isAnonymous!"
+        });
+    }
+});
+
+router.post('/get-posts', (req, res) => {
+    if ('latitude' in req.body && 'longitude' in req.body && 'tag' in req.body)
+    {
+        if (typeof req.query.limit === 'undefined')
+        {
+            console.log('/get-posts', { error: "Please specify limit" });
+            res.status(401).json({
+                error: "Please specify limit"
+            });
+        }
+        else
+        {
+
+            let page = Math.max(1, parseInt(req.query.page)), limit = parseInt(req.query.limit);
+            Post.find()
+            .then(results => {
+                res.status(200).json(results
+                    .filter(result => (req.body.tag == "All" || req.body.tag == result.tag) && distance(result.latitude, result.longitude, req.body.latitude, req.body.longitude) <= 2)
+                    .map(result => {
+                        const clone = JSON.parse(JSON.stringify(result));
+    
+                        clone.postID = clone._id;
+                        delete clone._id;
+                        delete clone.__v;
+                        delete clone.updatedAt;
+    
+                        return clone;
+                    }).slice((page-1)*limit, (page-1)*limit+limit));
+            })
+            .catch(err => {
+                console.log('/get-posts', { error: err });
+                res.status(401).json({
+                    error: err
+                });
+            });
+        }
+    }
+    else
+    {
+        console.log('/get-posts', { error: "Body should contain latitude, longitude and tag" });
+        res.status(401).json({
+            error: "Body should contain latitude, longitude and tag"
+        });
+    }
+});
+
+router.post('/get-posts-length', (req, res) => {
+    if ('latitude' in req.body && 'longitude' in req.body && 'tag' in req.body)
+    {
+        Post.find()
+        .then(results => {
+            res.status(200).json({ length: results.filter(result => (req.body.tag == "All" || req.body.tag == result.tag) && distance(result.latitude, result.longitude, req.body.latitude, req.body.longitude) <= 2).length });
+        })
+        .catch(err => {
+            console.log('/get-posts-length', { error: err });
+            res.status(401).json({
+                error: err
+            });
+        });
+    }
+    else
+    {
+        console.log('/get-posts-length', { error: "Body should contain latitude, longitude and tag" });
+        res.status(401).json({
+            error: "Body should contain latitude, longitude and tag"
+        });
+    }
+});
