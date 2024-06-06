@@ -298,3 +298,65 @@ router.post('/get-posts-length', (req, res) => {
         });
     }
 });
+
+
+router.post('/create-comment', (req, res) => {
+    if ('userID' in req.body && 'postID' in req.body && 'content' in req.body)
+    {
+        if (req.body.content.trim() === '')
+        {
+            console.log('/create-comment', { error: "Please enter comment" });
+            res.status(401).json({
+                error: "Please enter comment"
+            });
+        }
+        else
+        {
+            User.find().where({ _id: req.body.userID })
+            .then(result => {
+                if (result.length == 0)
+                {
+                    console.log('/create-comment', { error: "Invalid userID" });
+                    res.status(401).json({
+                        error: "Invalid userID"
+                    });
+                }
+                else
+                {
+                    Post.findOneAndUpdate({ _id: req.body.postID }, { $push: { comments: {
+                        _id: new mongoose.Types.ObjectId(),
+                        userID: req.body.userID,
+                        author: result[0].name,
+                        avatar: result[0].avatar,
+                        content: req.body.content
+                    }}}).exec().then(result => {
+                        console.log('/create-comment', { message: "Comment added sucessfully" });
+                        res.status(200).json({
+                            message: "Comment added sucessfully"
+                        });
+                    }).catch(err => {
+                        console.log('/create-comment', { error: err });
+                        res.status(401).json({
+                            error: err
+                        });
+                    });
+                }
+            })
+            .catch(err => {
+                console.log('/create-comment', { error: err });
+                res.status(401).json({
+                    error: err
+                });
+            })
+        }
+    }
+    else
+    {
+        console.log('/create-comment', { error: "Body should contain userID, postID and content!" });
+        res.status(401).json({
+            error: "Body should contain userID, postID and content!"
+        });
+    }
+});
+
+module.exports = router;
